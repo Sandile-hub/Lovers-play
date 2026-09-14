@@ -92,42 +92,28 @@ const KissMarryBlock = () => {
   const navigate = useNavigate();
   const { vibrate, share } = useApp();
   const [searchParams] = useSearchParams();
-  const compareId = searchParams.get("compare");
+  
+  // Look for the encoded data from a partner
+  const encodedData = searchParams.get("data");
 
-  // State for the current 3 celebrities
   const [currentCelebrities, setCurrentCelebrities] = useState(getRandomThree);
   const [assignments, setAssignments] = useState({});
   const [locked, setLocked] = useState(false);
   const [compareData, setCompareData] = useState(null);
 
-  // Load comparison if present
+  // Load comparison data if the URL contains encoded data
   useEffect(() => {
-    if (compareId) {
-      const data = loadFromLocal(`kmb_${compareId}`);
-      if (!data) {
-        alert("Comparison not found!");
+    if (encodedData) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(atob(encodedData)));
+        setCompareData(decoded);
+      } catch (err) {
+        alert("Invalid or corrupted comparison link!");
         navigate("/play/kmb");
-        return;
       }
-      setCompareData(data);
     }
-  }, [compareId, navigate]);
+  }, [encodedData, navigate]);
 
-  const saveToLocal = (key, data) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch {}
-  };
-  const loadFromLocal = (key) => {
-    try {
-      const d = localStorage.getItem(key);
-      return d ? JSON.parse(d) : null;
-    } catch {
-      return null;
-    }
-  };
-  const generateId = () =>
-    Date.now() + "_" + Math.random().toString(36).slice(2, 6);
   const getOrigin = () => window.location.origin;
 
   // Shuffle to get a new set of 3 celebrities
@@ -172,20 +158,22 @@ const KissMarryBlock = () => {
     }
     vibrate(50);
     setLocked(true);
-    confetti({ particleCount: 100, spread: 60, origin: { y: 0.5 } });
+    // Added useWorker: false to fix CSP error
+    confetti({ particleCount: 100, spread: 60, origin: { y: 0.5 }, useWorker: false });
   };
 
   const handleShare = () => {
-    const id = generateId();
-
+    // 1. Create the data object to share
     const dataToShare = currentCelebrities.map((celeb) => ({
       name: celeb.name,
       action: assignments[celeb.id] || null,
     }));
 
-    saveToLocal(`kmb_${id}`, dataToShare);
-
-    const link = `${getOrigin()}/play/kmb/compare?compare=${id}`;
+    // 2. Encode the data into Base64
+    const encoded = btoa(encodeURIComponent(JSON.stringify(dataToShare)));
+    
+    // 3. Generate the link with the encoded data
+    const link = `${getOrigin()}/play/kmb/compare?data=${encoded}`;
     const text = `My KMB choices are locked! Compare with me: ${link}`;
     share(text, link);
   };
@@ -196,8 +184,8 @@ const KissMarryBlock = () => {
     vibrate(30);
   };
 
-  // Comparison view
-  if (compareId && compareData) {
+  // Comparison view (Player 2 opens the link)
+  if (encodedData && compareData) {
     const emojis = { kiss: "💋", marry: "💍", block: "🚫" };
     return (
       <div className="pb-4">
@@ -206,13 +194,14 @@ const KissMarryBlock = () => {
           <h2 className="font-playfair text-2xl font-bold mt-2">
             Compare Choices
           </h2>
+          <p className="text-sm text-gray-600 mt-1">Here is what your partner chose!</p>
           <div className="mt-4 space-y-3">
             {compareData.map((item, index) => (
               <div
                 key={index}
                 className="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between"
               >
-                <span>{item.name}</span>
+                <span className="font-medium">{item.name}</span>
                 <span className="text-2xl">{emojis[item.action] || "❓"}</span>
               </div>
             ))}
@@ -228,7 +217,7 @@ const KissMarryBlock = () => {
     );
   }
 
-  // Main game
+  // Main game (Player 1)
   return (
     <div className="pb-4">
       <div className="mt-4">
