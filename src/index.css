@@ -2,87 +2,573 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================
+   LOVERS PLAY — GLOBAL DESIGN SYSTEM
+   ========================================================= */
+
 @layer base {
+
   html {
     font-family: 'Poppins', sans-serif;
-    background: #FFF8F0;
+    background: #fff9f7;
+    color: #171717;
+    scroll-behavior: smooth;
   }
+
   body {
     margin: 0;
     min-height: 100vh;
-    background: #FFF8F0;
+    background:
+      radial-gradient(
+        circle at 50% -10%,
+        rgba(255, 105, 135, 0.12),
+        transparent 35%
+      ),
+      #fff9f7;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
+
   #root {
     max-width: 420px;
     margin: 0 auto;
-    background: #FFF8F0;
     min-height: 100vh;
     position: relative;
     padding-bottom: 80px;
+
+    background:
+      radial-gradient(
+        circle at 90% 5%,
+        rgba(255, 77, 109, 0.06),
+        transparent 25%
+      ),
+      radial-gradient(
+        circle at 5% 45%,
+        rgba(255, 182, 193, 0.08),
+        transparent 30%
+      ),
+      #fff9f7;
+
+    overflow-x: hidden;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection {
+    background: rgba(255, 77, 109, 0.2);
   }
 }
 
+
+/* =========================================================
+   COMPONENTS
+   ========================================================= */
+
 @layer components {
+
+  /* -------------------------------------------------------
+     GLASS
+     ------------------------------------------------------- */
+
   .glass {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.68);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+
+    border: 1px solid rgba(255, 255, 255, 0.75);
+
+    box-shadow:
+      0 10px 40px rgba(25, 15, 20, 0.05),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
+
+
+  /* -------------------------------------------------------
+     PRIMARY BUTTON
+     ------------------------------------------------------- */
+
   .btn-primary {
-    @apply bg-gradient-to-r from-red to-pink text-white font-semibold py-4 px-8 rounded-full shadow-[0_8px_30px_rgba(255,77,109,0.35)] transition-all duration-200 w-full text-center;
+    @apply relative overflow-hidden
+      bg-gradient-to-r from-[#ff4d6d] via-[#ff5575] to-[#ff365c]
+      text-white
+      font-semibold
+      py-4
+      px-8
+      rounded-full
+      text-center
+      shadow-[0_10px_30px_rgba(255,77,109,0.28)]
+      transition-all
+      duration-200
+      w-full;
   }
-  .btn-primary:active {
-    transform: scale(0.95);
+
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+
+    background: linear-gradient(
+      110deg,
+      transparent 20%,
+      rgba(255,255,255,0.2) 45%,
+      transparent 70%
+    );
+
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
   }
+
+  .btn-primary:hover::before {
+    transform: translateX(100%);
+  }
+
   .btn-primary:hover {
-    transform: scale(1.02);
+    transform: translateY(-1px) scale(1.015);
+    box-shadow:
+      0 14px 35px rgba(255,77,109,0.32);
   }
+
+  .btn-primary:active {
+    transform: scale(0.96);
+    box-shadow:
+      0 6px 18px rgba(255,77,109,0.22);
+  }
+
+  .btn-primary:focus-visible {
+    outline: 3px solid rgba(255,77,109,0.25);
+    outline-offset: 3px;
+  }
+
+
+  /* -------------------------------------------------------
+     SECONDARY BUTTON
+     ------------------------------------------------------- */
+
   .btn-secondary {
-    @apply bg-black text-white font-semibold py-3 px-6 rounded-full transition-all duration-200;
+    @apply bg-[#171717]
+      text-white
+      font-semibold
+      py-3
+      px-6
+      rounded-full
+      transition-all
+      duration-200
+      text-center;
   }
+
+  .btn-secondary:hover {
+    transform: translateY(-1px);
+    background: #242424;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  }
+
   .btn-secondary:active {
     transform: scale(0.95);
   }
-  .btn-secondary:hover {
-    transform: scale(1.02);
+
+  .btn-secondary:focus-visible {
+    outline: 3px solid rgba(0,0,0,0.15);
+    outline-offset: 3px;
   }
+
+
+  /* -------------------------------------------------------
+     GAME CARD
+     ------------------------------------------------------- */
+
   .game-card {
-    @apply bg-white rounded-[32px] p-5 shadow-[0_20px_60px_rgba(255,77,109,0.12)] transition-all duration-200 cursor-pointer border border-white/50;
+    @apply relative
+      overflow-hidden
+      bg-white/85
+      rounded-[26px]
+      p-5
+      cursor-pointer
+      border
+      border-white/80
+      transition-all
+      duration-300;
+    
+    box-shadow:
+      0 8px 30px rgba(20, 10, 15, 0.055),
+      0 2px 8px rgba(255,77,109,0.025);
+
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
+
+  .game-card::before {
+    content: '';
+    position: absolute;
+
+    width: 100px;
+    height: 100px;
+
+    right: -50px;
+    top: -50px;
+
+    border-radius: 999px;
+
+    background: rgba(255, 77, 109, 0.07);
+
+    transition:
+      transform 0.4s ease,
+      opacity 0.4s ease;
+  }
+
+  .game-card:hover {
+    transform: translateY(-4px);
+
+    box-shadow:
+      0 18px 45px rgba(20, 10, 15, 0.08),
+      0 8px 25px rgba(255,77,109,0.07);
+
+    border-color: rgba(255, 180, 195, 0.45);
+  }
+
+  .game-card:hover::before {
+    transform: scale(1.8);
+    opacity: 0.8;
+  }
+
   .game-card:active {
-    transform: scale(0.97);
+    transform: scale(0.975);
   }
+
+
+  /* -------------------------------------------------------
+     BADGES
+     ------------------------------------------------------- */
+
   .badge-gold {
-    @apply bg-black text-gold px-3 py-1 rounded-full text-[10px] font-semibold tracking-wide whitespace-nowrap;
+    @apply bg-[#171717]
+      text-[#f5c76b]
+      px-3
+      py-1
+      rounded-full
+      text-[10px]
+      font-semibold
+      tracking-wide
+      whitespace-nowrap;
   }
+
+
+  /* -------------------------------------------------------
+     PILL TAGS
+     ------------------------------------------------------- */
+
   .pill-tag {
-    @apply bg-gray-100 px-3 py-0.5 rounded-full text-xs font-semibold text-gray-600;
+    @apply inline-flex
+      items-center
+      bg-[#f5f5f5]
+      px-3
+      py-1
+      rounded-full
+      text-[10px]
+      font-semibold
+      text-gray-600
+      whitespace-nowrap
+      transition-colors
+      duration-200;
   }
+
+  .pill-tag:hover {
+    background: #eeeeee;
+  }
+
   .pill-tag.live {
     @apply bg-green-50 text-green-600;
   }
+
   .pill-tag.live::before {
-    content: '● ';
-    color: #2d9e2d;
+    content: '';
+    width: 5px;
+    height: 5px;
+
+    margin-right: 5px;
+
+    border-radius: 999px;
+
+    background: #2d9e2d;
+
+    box-shadow:
+      0 0 0 3px rgba(45,158,45,0.08);
+
+    animation: livePulse 2s infinite;
   }
+
+
+  /* -------------------------------------------------------
+     PROGRESS BAR
+     ------------------------------------------------------- */
+
   .progress-bar {
-    @apply h-1.5 w-full bg-gray-200 rounded-full overflow-hidden;
+    @apply h-1.5
+      w-full
+      bg-gray-200/80
+      rounded-full
+      overflow-hidden;
   }
+
   .progress-bar .fill {
-    @apply h-full bg-gradient-to-r from-pink to-red rounded-full transition-all duration-500;
+    @apply h-full
+      bg-gradient-to-r
+      from-[#ff4d6d]
+      to-[#ff365c]
+      rounded-full
+      transition-all
+      duration-500;
   }
+
+
+  /* -------------------------------------------------------
+     NAVIGATION
+     ------------------------------------------------------- */
+
   .nav-tab {
-    @apply flex flex-col items-center text-[10px] text-gray-400 bg-transparent border-none cursor-pointer px-2 py-1 transition-all duration-200 relative;
+    @apply relative
+      flex
+      flex-col
+      items-center
+      text-[10px]
+      text-gray-400
+      bg-transparent
+      border-none
+      cursor-pointer
+      px-3
+      py-1.5
+      transition-all
+      duration-200;
   }
+
+  .nav-tab:hover {
+    color: #ff4d6d;
+  }
+
   .nav-tab.active {
-    @apply text-red;
+    @apply text-[#ff4d6d];
   }
+
   .nav-tab .icon {
-    @apply text-2xl leading-none mb-0.5;
+    @apply text-2xl
+      leading-none
+      mb-0.5
+      transition-transform
+      duration-200;
   }
+
+  .nav-tab:hover .icon {
+    transform: translateY(-2px);
+  }
+
+  .nav-tab.active .icon {
+    transform: translateY(-1px);
+  }
+
   .nav-tab.active::after {
     content: '';
-    @apply absolute -top-1 left-1/2 -translate-x-1/2 w-5 h-1 bg-red rounded-full;
+
+    position: absolute;
+
+    top: -5px;
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    width: 20px;
+    height: 3px;
+
+    background: #ff4d6d;
+
+    border-radius: 999px;
+
+    box-shadow:
+      0 2px 8px rgba(255,77,109,0.3);
   }
+
+
+  /* -------------------------------------------------------
+     SOFT CARD
+     Useful throughout the app
+     ------------------------------------------------------- */
+
+  .soft-card {
+    @apply bg-white/80
+      rounded-[26px]
+      border
+      border-white/80;
+    
+    box-shadow:
+      0 8px 30px rgba(20,10,15,0.05);
+  }
+
+
+  /* -------------------------------------------------------
+     SECTION LABEL
+     ------------------------------------------------------- */
+
+  .section-label {
+    @apply text-[10px]
+      font-bold
+      uppercase
+      tracking-[0.18em]
+      text-[#ff4d6d];
+  }
+
+
+  /* -------------------------------------------------------
+     HEART DECORATION
+     ------------------------------------------------------- */
+
+  .floating-heart {
+    @apply pointer-events-none
+      absolute
+      select-none;
+    
+    animation: floatHeart 5s ease-in-out infinite;
+  }
+
+
+  /* -------------------------------------------------------
+     ROMANTIC DIVIDER
+     ------------------------------------------------------- */
+
+  .romantic-divider {
+    @apply relative
+      mx-auto
+      h-px
+      w-16
+      bg-gradient-to-r
+      from-transparent
+      via-[#ff9caf]
+      to-transparent;
+  }
+
+
+  /* -------------------------------------------------------
+     INPUTS
+     ------------------------------------------------------- */
+
+  .love-input {
+    @apply w-full
+      rounded-2xl
+      border
+      border-gray-200
+      bg-white/80
+      px-4
+      py-3
+      text-sm
+      text-gray-900
+      outline-none
+      transition-all
+      duration-200;
+  }
+
+  .love-input::placeholder {
+    color: #a3a3a3;
+  }
+
+  .love-input:focus {
+    border-color: rgba(255,77,109,0.45);
+
+    box-shadow:
+      0 0 0 4px rgba(255,77,109,0.08);
+  }
+
+}
+
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes livePulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.55;
+    transform: scale(0.8);
+  }
+}
+
+
+@keyframes floatHeart {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+
+  50% {
+    transform: translateY(-8px) rotate(5deg);
+  }
+}
+
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,77,109,0.2);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,77,109,0.35);
+}
+
+
+/* =========================================================
+   MOBILE TOUCH
+   ========================================================= */
+
+@media (max-width: 420px) {
+
+  #root {
+    width: 100%;
+  }
+
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
 }
