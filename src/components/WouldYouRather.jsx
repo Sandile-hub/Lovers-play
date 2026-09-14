@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../App';
 import confetti from 'canvas-confetti';
 
@@ -21,28 +22,63 @@ const questions = [
 ];
 
 const WouldYouRather = () => {
-  const { vibrate } = useApp();
+  const { vibrate, share } = useApp();
+  const [searchParams] = useSearchParams();
+  
+  // URL Data for Player 2
+  const encodedData = searchParams.get('data');
+  
+  const [phase, setPhase] = useState('setup'); // setup, p1, share, p2, done
+  const [p1Name, setP1Name] = useState('');
+  const [p2Name, setP2Name] = useState('');
+  
   const [round, setRound] = useState(0);
   const [p1Choices, setP1Choices] = useState([]);
   const [p2Choices, setP2Choices] = useState([]);
-  const [phase, setPhase] = useState('p1');
   const [matches, setMatches] = useState(0);
+
+  // Check if Player 2 is opening the link
+  useEffect(() => {
+    if (encodedData) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(atob(encodedData)));
+        setP1Choices(decoded.choices);
+        setP1Name(decoded.name || 'Partner');
+        setPhase('p2');
+        setRound(0);
+      } catch (err) {
+        alert('Invalid or corrupted link!');
+        setPhase('setup');
+      }
+    }
+  }, [encodedData]);
+
+  const handleStart = () => {
+    if (!p1Name.trim()) { alert('Please enter your name'); return; }
+    vibrate(30);
+    setPhase('p1');
+    setRound(0);
+    setP1Choices([]);
+  };
 
   const handleChoice = (choice) => {
     vibrate(30);
+    
     if (phase === 'p1') {
       const newP1 = [...p1Choices, choice];
       setP1Choices(newP1);
+      
       if (round < questions.length - 1) {
         setRound(round + 1);
       } else {
-        setPhase('p2');
-        setRound(0);
+        setPhase('share');
         vibrate(50);
       }
-    } else {
+    } 
+    else if (phase === 'p2') {
       const newP2 = [...p2Choices, choice];
       setP2Choices(newP2);
+      
       if (round < questions.length - 1) {
         setRound(round + 1);
       } else {
@@ -53,35 +89,55 @@ const WouldYouRather = () => {
         setMatches(matchCount);
         setPhase('done');
         if (matchCount >= 12) {
-          confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
+          confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 }, useWorker: false });
         }
         vibrate(50);
       }
     }
   };
 
+  const generateLink = () => {
+    const dataToEncode = { name: p1Name.trim(), choices: p1Choices };
+    const encoded = btoa(encodeURIComponent(JSON.stringify(dataToEncode)));
+    return `${window.location.origin}/play/wyr?data=${encoded}`;
+  };
+
+  const handleShareLink = () => {
+    const link = generateLink();
+    const text = `${p1Name} has answered 15 Would You Rather questions! Can you match their choices? Play here: ${link}`;
+    share(text, link);
+  };
+
   const resetGame = () => {
+    setPhase('setup');
     setRound(0);
     setP1Choices([]);
     setP2Choices([]);
-    setPhase('p1');
     setMatches(0);
+    setP1Name('');
+    setP2Name('');
     vibrate(30);
   };
 
-  if (phase === 'done') {
-    const perfect = matches >= 12;
+  // 1. SETUP PHASE
+  if (phase === 'setup') {
     return (
       <div className="pb-4">
-        <div className="mt-8 text-center">
-          <span className="text-7xl">{perfect ? '🔥' : '💕'}</span>
-          <h2 className="font-playfair text-3xl font-bold mt-2">{perfect ? 'Soulmates!' : 'You match well!'}</h2>
-          <p className="text-4xl font-bold text-red mt-2">{matches} / {questions.length}</p>
-          <p className="text-gray-600 text-sm mt-1">You matched {matches} out of {questions.length} questions</p>
-          <div className="mt-6 flex flex-col gap-3">
-            <button className="btn-primary" onClick={resetGame}>🔄 Play Again</button>
-            <button className="btn-secondary" onClick={() => { vibrate(50); window.open(`https://wa.me/?text=${encodeURIComponent(`We matched ${matches}/${questions.length} in Would You Rather! ❤️ Play at Lovers Play`)}`, '_blank'); }}>
-              📤 Share on WhatsApp
+        <div className="mt-6 text-center">
+          <span className="text-6xl">💑</span>
+          <h2 className="font-playfair text-2xl font-bold mt-2">Would You Rather</h2>
+          <p className="text-gray-600 text-sm">See how well you match with your partner</p>
+          
+          <div className="mt-6 glass rounded-[32px] p-6 text-left">
+            <label className="block font-semibold text-sm text-gray-700">Your Name</label>
+            <input 
+              value={p1Name} 
+              onChange={e => setP1Name(e.target.value)} 
+              placeholder="e.g. Sandile" 
+              className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-pink outline-none mt-1" 
+            />
+            <button className="btn-primary mt-6 w-full" onClick={handleStart}>
+              🚀 Start Playing
             </button>
           </div>
         </div>
@@ -89,9 +145,59 @@ const WouldYouRather = () => {
     );
   }
 
+  // 2. SHARE PHASE (Player 1 done)
+  if (phase === 'share') {
+    const link = generateLink();
+    return (
+      <div className="pb-4">
+        <div className="mt-6 text-center">
+          <span className="text-6xl">📱</span>
+          <h2 className="font-playfair text-2xl font-bold mt-2">Ready to send!</h2>
+          <p className="text-gray-600 text-sm mt-1">Send this link to your partner so they can guess your choices.</p>
+          
+          <div className="glass rounded-[32px] p-4 mt-4 break-all text-xs text-gray-500 bg-gray-50 border">
+            {link}
+          </div>
+          
+          <div className="mt-6 flex flex-col gap-3">
+            <button className="btn-primary" onClick={handleShareLink}>📤 Share on WhatsApp</button>
+            <button className="btn-secondary" onClick={() => { navigator.clipboard?.writeText(link); alert('Copied!'); }}>📋 Copy Link</button>
+            <button className="bg-gray-100 text-black py-3 rounded-full font-semibold" onClick={resetGame}>Back to Start</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. DONE PHASE (Player 2 finished)
+  if (phase === 'done') {
+    const perfect = matches >= 12;
+    return (
+      <div className="pb-4">
+        <div className="mt-8 text-center">
+          <span className="text-7xl">{perfect ? '🔥' : '💕'}</span>
+          <h2 className="font-playfair text-3xl font-bold mt-2">
+            {perfect ? 'Soulmates!' : 'You match well!'}
+          </h2>
+          <p className="text-4xl font-bold text-red mt-2">{matches} / {questions.length}</p>
+          <p className="text-gray-600 text-sm mt-1">{p1Name} and you matched on {matches} questions!</p>
+          
+          <div className="mt-6 flex flex-col gap-3">
+            <button className="btn-primary" onClick={resetGame}>🔄 Play Again</button>
+            <button className="btn-secondary" onClick={() => { vibrate(50); window.open(`https://wa.me/?text=${encodeURIComponent(`We matched ${matches}/${questions.length} in Would You Rather! ❤️ Play at Lovers Play`)}`, '_blank'); }}>
+              📤 Share Score
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. PLAYING PHASE (P1 or P2)
   const q = questions[round];
-  const label = phase === 'p1' ? 'Player 1' : 'Player 2';
+  const label = phase === 'p1' ? `${p1Name}'s Turn` : "Your Turn";
   const progress = phase === 'p1' ? p1Choices.length : p2Choices.length;
+  const progressColor = phase === 'p1' ? 'bg-pink' : 'bg-blue-500';
 
   return (
     <div className="pb-4">
@@ -100,21 +206,33 @@ const WouldYouRather = () => {
           <span>{label} – Question {round + 1} / {questions.length}</span>
           <span>{progress} / {questions.length}</span>
         </div>
-        <div className="progress-bar mt-2">
-          <div className="fill" style={{ width: `${(progress/questions.length)*100}%` }} />
+        
+        {/* Dynamic Progress Bar */}
+        <div className="progress-bar mt-2 bg-gray-100 rounded-full h-2 overflow-hidden">
+          <div className={`fill h-full transition-all duration-300 ${progressColor}`} style={{ width: `${(progress/questions.length)*100}%` }} />
         </div>
+        
         <div className="mt-6 text-center">
-          <p className="text-lg font-medium">Would you rather…</p>
+          <p className="text-lg font-medium text-gray-500">Would you rather…</p>
           <div className="mt-4 grid grid-cols-1 gap-4">
-            <button className="bg-white p-6 rounded-3xl shadow-lg text-lg font-semibold active:scale-95 transition-all border-2 border-pink/20 hover:border-red" onClick={() => handleChoice(0)}>
+            <button 
+              className={`bg-white p-6 rounded-3xl shadow-lg text-lg font-semibold active:scale-95 transition-all border-2 ${phase === 'p1' ? 'border-pink/20 hover:border-pink' : 'border-blue-200 hover:border-blue-500'}`} 
+              onClick={() => handleChoice(0)}
+            >
               {q.q1}
             </button>
-            <button className="bg-white p-6 rounded-3xl shadow-lg text-lg font-semibold active:scale-95 transition-all border-2 border-pink/20 hover:border-red" onClick={() => handleChoice(1)}>
+            <button 
+              className={`bg-white p-6 rounded-3xl shadow-lg text-lg font-semibold active:scale-95 transition-all border-2 ${phase === 'p1' ? 'border-pink/20 hover:border-pink' : 'border-blue-200 hover:border-blue-500'}`} 
+              onClick={() => handleChoice(1)}
+            >
               {q.q2}
             </button>
           </div>
+          
           <p className="text-xs text-gray-400 mt-4 italic">
-            {phase === 'p1' ? 'Pass phone to your partner after all questions' : "You're almost done!"}
+            {phase === 'p1' 
+              ? "Answer all questions, then share the link with your partner" 
+              : `Try to guess what ${p1Name} chose!`}
           </p>
         </div>
       </div>
