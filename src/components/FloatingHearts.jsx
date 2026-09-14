@@ -1,42 +1,70 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useMemo } from "react";
+import { motion } from "framer-motion";
 
 const FloatingHearts = () => {
-  const hearts = Array.from({ length: 15 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    duration: 8 + Math.random() * 10,
-    delay: Math.random() * 10,
-    size: 16 + Math.random() * 24,
-  }));
+  const hearts = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) => ({
+        id: index,
+        x: Math.random() * 100,
+        duration: 10 + Math.random() * 9,
+        delay: Math.random() * 9,
+        size: 12 + Math.random() * 20,
+        drift: -20 + Math.random() * 40,
+        rotation: -12 + Math.random() * 24,
+        opacity: 0.08 + Math.random() * 0.12,
+      })),
+    []
+  );
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      {hearts.map((h) => (
+    <div
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      aria-hidden="true"
+    >
+      {hearts.map((heart) => (
         <motion.div
-          key={h.id}
-          className="absolute text-pink/20"
-          style={{ left: `${h.x}%`, fontSize: h.size }}
-          initial={{ y: '100vh', opacity: 0.7 }}
-          animate={{ y: '-10vh', opacity: 0 }}
+          key={heart.id}
+          className="absolute text-[#ff4d6d]"
+          style={{
+            left: `${heart.x}%`,
+            fontSize: `${heart.size}px`,
+            opacity: heart.opacity,
+            filter: "drop-shadow(0 4px 8px rgba(255, 77, 109, 0.06))",
+          }}
+          initial={{
+            y: "110vh",
+            x: 0,
+            scale: 0.7,
+            rotate: heart.rotation,
+            opacity: 0,
+          }}
+          animate={{
+            y: "-15vh",
+            x: [0, heart.drift, 0],
+            scale: [0.7, 1, 0.85],
+            rotate: [
+              heart.rotation,
+              heart.rotation + 8,
+              heart.rotation - 5,
+              heart.rotation,
+            ],
+            opacity: [
+              0,
+              heart.opacity,
+              heart.opacity * 0.85,
+              0,
+            ],
+          }}
           transition={{
-            duration: h.duration,
-            delay: h.delay,
+            duration: heart.duration,
+            delay: heart.delay,
             repeat: Infinity,
-            ease: 'linear',
+            ease: "easeInOut",
+            times: [0, 0.15, 0.8, 1],
           }}
         >
-          {/* Inner div handles continuous rotation to avoid snapping */}
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{
-              duration: 10, // Professional, slow, elegant speed
-              repeat: Infinity,
-              ease: 'linear',
-            }}
-          >
-            ❤️
-          </motion.div>
+          ❤️
         </motion.div>
       ))}
     </div>
