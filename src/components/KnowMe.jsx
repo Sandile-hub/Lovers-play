@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../App';
 import confetti from 'canvas-confetti';
-import html2canvas from 'html2canvas';
 
 const KnowMe = () => {
   const navigate = useNavigate();
   const { vibrate, share } = useApp();
   const [searchParams] = useSearchParams();
+  
+  // Get both the ID (for the creator) and the encoded data (for the partner)
   const id = searchParams.get('id');
+  const encodedData = searchParams.get('data');
   const from = searchParams.get('from') || 'Partner';
 
   // States for create mode
@@ -30,19 +32,30 @@ const KnowMe = () => {
   const [done, setDone] = useState(false);
   const [score, setScore] = useState(0);
 
-  // Load quiz if id present
+  // Load quiz if id or encodedData is present
   useEffect(() => {
-    if (id) {
+    if (encodedData) {
+      // PLAYER MODE: Decode the data directly from the URL
+      try {
+        const decoded = JSON.parse(decodeURIComponent(atob(encodedData)));
+        setQuizData(decoded);
+        setAnswers(new Array(decoded.questions.length).fill(-1));
+      } catch (err) {
+        alert('Invalid quiz link!');
+        navigate('/');
+      }
+    } else if (id) {
+      // CREATOR MODE: Load from local storage (for the person who made it)
       const data = loadFromLocal(`lovers_quiz_${id}`);
       if (!data) {
-        alert('Quiz not found!');
+        alert('Quiz not found! If you are the creator, please recreate it on this device.');
         navigate('/');
         return;
       }
       setQuizData(data);
       setAnswers(new Array(data.questions.length).fill(-1));
     }
-  }, [id, navigate]);
+  }, [id, encodedData, navigate]);
 
   // Helpers
   const generateId = () => Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -78,10 +91,20 @@ const KnowMe = () => {
     if (!name.trim()) { alert('Please enter your name'); return; }
     const valid = questions.every(q => q.q.trim() && q.options.every(o => o.trim()));
     if (!valid) { alert('Fill all questions and options'); return; }
+    
     const newId = generateId();
     const data = { name: name.trim(), questions };
+    
+    // 1. Save locally (so the creator can still access it on this device)
     saveToLocal(`lovers_quiz_${newId}`, data);
-    const fullLink = `${getOrigin()}/play/knowme?id=${newId}&from=${encodeURIComponent(name.trim())}`;
+    
+    // 2. Encode the data into a Base64 string to put inside the URL
+    // We use encodeURIComponent to safely handle emojis and special characters
+    const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
+    
+    // 3. Build the full link with BOTH the id and the encoded data
+    const fullLink = `${getOrigin()}/play/knowme?id=${newId}&from=${encodeURIComponent(name.trim())}&data=${encoded}`;
+    
     setCreatedId(newId);
     setLink(fullLink);
     vibrate(50);
@@ -101,8 +124,7 @@ const KnowMe = () => {
     if (current < quizData.questions.length - 1) {
       setCurrent(current + 1);
     } else {
-      // Calculate score: using a simple rule (first option considered correct for demo)
-      // We'll use the creator's name length modulo 4 to pick correct index
+      // Calculate score
       const creatorName = quizData.name || 'Lover';
       let correctCount = 0;
       quizData.questions.forEach((q, qi) => {
@@ -112,7 +134,7 @@ const KnowMe = () => {
       setScore(correctCount);
       setDone(true);
       if (correctCount >= 4) {
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, useWorker: false });
       }
       vibrate(50);
     }
@@ -126,7 +148,7 @@ const KnowMe = () => {
   };
 
   // Render create mode
-  if (!id) {
+  if (!id && !encodedData) {
     if (createdId) {
       return (
         <div className="pb-4">
@@ -180,7 +202,7 @@ const KnowMe = () => {
   }
 
   // Play mode
-  if (!quizData) return <div className="py-8 text-center">Loading...</div>;
+  if (!quizData) return <div className="py-8 text-center">Loading quiz...</div>;
 
   if (done) {
     const perfect = score >= 4;
