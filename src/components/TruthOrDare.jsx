@@ -1,7 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../App';
 
-// SAFE / SOFT QUESTIONS
+// =========================================================
+// SOFT QUESTIONS
+// =========================================================
 const truthsSoft = [
   "When did you first know you liked me?",
   "What's your favorite memory of us?",
@@ -78,7 +80,9 @@ const daresSoft = [
   "Compliment my eyes without blinking",
 ];
 
-// SPICY QUESTIONS (Intimate but tasteful)
+// =========================================================
+// SPICY QUESTIONS
+// =========================================================
 const truthsSpicy = [
   "Where is the most unexpected place you want to kiss me?",
   "What's your favorite body part of mine and why?",
@@ -155,7 +159,9 @@ const daresSpicy = [
   "Let me guide your hand to my waist.",
 ];
 
-// EXPLICIT QUESTIONS (For very comfortable couples)
+// =========================================================
+// CRAZY QUESTIONS
+// =========================================================
 const truthsCrazy = [
   "What's your favorite thing about my body during intimate moments?",
   "What's your favorite sexual memory of us?",
@@ -232,152 +238,588 @@ const daresCrazy = [
   "Let me take full control for 2 minutes.",
 ];
 
+// =========================================================
+// MODE CONFIG
+// =========================================================
+const MODES = {
+  soft: {
+    label: 'Soft',
+    emoji: '😊',
+    subtitle: 'Cute & romantic',
+    description: 'Sweet questions and playful dares',
+    accent: 'pink',
+  },
+  spicy: {
+    label: 'Spicy',
+    emoji: '🌶️',
+    subtitle: 'Flirty & intimate',
+    description: 'Turn up the chemistry',
+    accent: 'red',
+  },
+  crazy: {
+    label: 'Crazy',
+    emoji: '🔥',
+    subtitle: 'For very comfortable couples',
+    description: 'Only when you both feel ready',
+    accent: 'purple',
+  },
+};
+
 const TruthOrDare = () => {
   const { vibrate } = useApp();
-  const [difficulty, setDifficulty] = useState('soft'); // 'soft', 'spicy', 'crazy'
+
+  const [difficulty, setDifficulty] = useState('soft');
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState(null);
   const [type, setType] = useState('');
   const [timer, setTimer] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
+
   const timerRef = useRef(null);
+  const spinTimeoutRef = useRef(null);
+  const resultTimeoutRef = useRef(null);
+
+  // Clean up timers when page unmounts.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (spinTimeoutRef.current) clearTimeout(spinTimeoutRef.current);
+      if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+    };
+  }, []);
+
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    setTimerActive(false);
+  };
+
+  const clearRoundTimeouts = () => {
+    if (spinTimeoutRef.current) {
+      clearTimeout(spinTimeoutRef.current);
+      spinTimeoutRef.current = null;
+    }
+
+    if (resultTimeoutRef.current) {
+      clearTimeout(resultTimeoutRef.current);
+      resultTimeoutRef.current = null;
+    }
+  };
+
+  const getCurrentLists = () => {
+    switch (difficulty) {
+      case 'spicy':
+        return {
+          truths: truthsSpicy,
+          dares: daresSpicy,
+        };
+
+      case 'crazy':
+        return {
+          truths: truthsCrazy,
+          dares: daresCrazy,
+        };
+
+      case 'soft':
+      default:
+        return {
+          truths: truthsSoft,
+          dares: daresSoft,
+        };
+    }
+  };
+
+  const startDareTimer = () => {
+    clearTimer();
+
+    let count = 30;
+    setTimer(count);
+    setTimerActive(true);
+
+    timerRef.current = setInterval(() => {
+      count -= 1;
+      setTimer(count);
+
+      if (count <= 0) {
+        clearTimer();
+        vibrate(40);
+      }
+    }, 1000);
+  };
 
   const spinBottle = () => {
     if (spinning) return;
+
+    clearTimer();
+    clearRoundTimeouts();
+
     vibrate(50);
+
     setSpinning(true);
     setResult(null);
-    setTimerActive(false);
-    if (timerRef.current) clearInterval(timerRef.current);
+    setType('');
+    setTimer(0);
 
-    // Select the correct lists based on difficulty
-    const truths = difficulty === 'soft' ? truthsSoft : difficulty === 'spicy' ? truthsSpicy : truthsCrazy;
-    const dares = difficulty === 'soft' ? daresSoft : difficulty === 'spicy' ? daresSpicy : daresCrazy;
+    const { truths, dares } = getCurrentLists();
 
     const isTruth = Math.random() < 0.5;
     const list = isTruth ? truths : dares;
     const item = list[Math.floor(Math.random() * list.length)];
 
-    // Smooth spin animation (5 to 10 full rotations + random angle)
     const spins = 5 + Math.floor(Math.random() * 5);
     const randomAngle = Math.random() * 360;
     const totalRotation = rotation + (spins * 360) + randomAngle;
-    
-    // Slight delay to ensure the spinning state is registered before rotation
-    setTimeout(() => {
-      setRotation(totalRotation);
-    }, 50);
 
-    setTimeout(() => {
+    spinTimeoutRef.current = setTimeout(() => {
+      setRotation(totalRotation);
+    }, 60);
+
+    resultTimeoutRef.current = setTimeout(() => {
       setType(isTruth ? 'Truth' : 'Dare');
       setResult(item);
       setSpinning(false);
-      
-      // Start timer for dares
+
       if (!isTruth) {
-        setTimer(30);
-        setTimerActive(true);
-        let count = 30;
-        timerRef.current = setInterval(() => {
-          count--;
-          setTimer(count);
-          if (count <= 0) {
-            clearInterval(timerRef.current);
-            setTimerActive(false);
-            vibrate(30);
-          }
-        }, 1000);
+        startDareTimer();
       }
+
       vibrate(30);
-    }, 2000); // 2 seconds for the spin to finish
+    }, 2100);
   };
 
   const nextRound = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setTimerActive(false);
+    clearTimer();
+    clearRoundTimeouts();
+
     setResult(null);
     setType('');
     setTimer(0);
+
     vibrate(30);
   };
 
   const skipDare = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setTimerActive(false);
-    setTimer(0);
+    clearTimer();
+    clearRoundTimeouts();
+
     setResult(null);
     setType('');
+    setTimer(0);
+
     vibrate(30);
   };
 
-  return (
-    <div className="pb-4">
-      <div className="mt-4 text-center">
-        <h2 className="font-playfair text-2xl font-bold">Truth or Dare</h2>
-        <p className="text-gray-600 text-sm">Spin the bottle!</p>
+  const changeDifficulty = (mode) => {
+    if (spinning) return;
 
-        {/* Difficulty Selector */}
-        <div className="mt-4 inline-flex bg-gray-100 p-1 rounded-full">
-          <button 
-            onClick={() => setDifficulty('soft')} 
-            className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${difficulty === 'soft' ? 'bg-white shadow text-pink' : 'text-gray-500'}`}
-          >Soft 😊</button>
-          <button 
-            onClick={() => setDifficulty('spicy')} 
-            className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${difficulty === 'spicy' ? 'bg-white shadow text-red' : 'text-gray-500'}`}
-          >Spicy 🌶️</button>
-          <button 
-            onClick={() => setDifficulty('crazy')} 
-            className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${difficulty === 'crazy' ? 'bg-white shadow text-purple-600' : 'text-gray-500'}`}
-          >Crazy 🔥</button>
+    clearTimer();
+    clearRoundTimeouts();
+
+    setDifficulty(mode);
+    setResult(null);
+    setType('');
+    setTimer(0);
+
+    vibrate(20);
+  };
+
+  const currentMode = MODES[difficulty];
+
+  const getModeClasses = (mode) => {
+    const isActive = difficulty === mode;
+
+    if (!isActive) {
+      return 'border-gray-100 bg-white text-gray-500 hover:border-gray-200 hover:bg-gray-50';
+    }
+
+    if (mode === 'soft') {
+      return 'border-[#ff4d6d]/20 bg-[#fff0f3] text-[#ff4d6d] shadow-[0_10px_30px_rgba(255,77,109,0.10)]';
+    }
+
+    if (mode === 'spicy') {
+      return 'border-red-100 bg-red-50 text-red-500 shadow-[0_10px_30px_rgba(239,68,68,0.10)]';
+    }
+
+    return 'border-purple-100 bg-purple-50 text-purple-600 shadow-[0_10px_30px_rgba(147,51,234,0.10)]';
+  };
+
+  return (
+    <div className="pb-6">
+      {/* =====================================================
+          HERO
+      ====================================================== */}
+      <section className="pt-4">
+        <div className="relative overflow-hidden rounded-[32px] bg-[#171717] p-6 text-white shadow-[0_24px_60px_rgba(23,23,23,0.18)]">
+          <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[#ff4d6d]/20 blur-2xl" />
+          <div className="absolute -bottom-16 -left-10 h-32 w-32 rounded-full bg-pink-500/10 blur-2xl" />
+
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-white/80">
+              <span>🍾</span>
+              Couple's game
+            </div>
+
+            <h1 className="mt-4 font-playfair text-4xl font-bold leading-tight">
+              Truth or Dare
+            </h1>
+
+            <p className="mt-2 max-w-[290px] text-sm leading-6 text-white/65">
+              Spin the bottle, answer honestly, and make your next moment unforgettable.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/80">
+                1 Phone
+              </span>
+              <span className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/80">
+                3 Levels
+              </span>
+              <span className="rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/80">
+                No Login
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          MODE SELECTOR
+      ====================================================== */}
+      <section className="mt-7">
+        <div className="section-label">
+          Choose your vibe
         </div>
 
-        <div className="mt-6 flex justify-center">
-          <div className="relative w-48 h-48">
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {Object.entries(MODES).map(([mode, config]) => (
+            <button
+              key={mode}
+              type="button"
+              disabled={spinning}
+              onClick={() => changeDifficulty(mode)}
+              className={`rounded-[22px] border p-3 text-left transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 ${getModeClasses(mode)}`}
+              aria-pressed={difficulty === mode}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xl">{config.emoji}</span>
+
+                {difficulty === mode && (
+                  <span className="text-[10px] font-black">✓</span>
+                )}
+              </div>
+
+              <p className="mt-2 text-xs font-bold">
+                {config.label}
+              </p>
+
+              <p className="mt-0.5 text-[9px] leading-4 opacity-70">
+                {config.subtitle}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-center gap-3 rounded-[20px] bg-white/70 px-4 py-3 shadow-[0_10px_35px_rgba(31,20,24,0.05)]">
+          <span className="text-lg">{currentMode.emoji}</span>
+
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-[#171717]">
+              {currentMode.label} mode
+            </p>
+
+            <p className="mt-0.5 text-[10px] leading-4 text-gray-400">
+              {currentMode.description}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          CRAZY WARNING
+      ====================================================== */}
+      {difficulty === 'crazy' && (
+        <div className="mt-4 rounded-[22px] border border-purple-100 bg-purple-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-lg">
+              🔥
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-purple-700">
+                Crazy mode
+              </p>
+
+              <p className="mt-1 text-[10px] leading-5 text-purple-600/80">
+                Only play if you are both 18+ and fully comfortable.
+                Either player can skip any challenge at any time.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================
+          BOTTLE AREA
+      ====================================================== */}
+      <section className="mt-8">
+        <div className="relative flex items-center justify-center">
+          {/* Outer glow */}
+          <div
+            className={`absolute h-52 w-52 rounded-full blur-3xl transition-all duration-700 ${
+              spinning
+                ? 'bg-[#ff4d6d]/25 scale-110'
+                : 'bg-[#ff4d6d]/10 scale-100'
+            }`}
+          />
+
+          {/* Bottle stage */}
+          <div className="relative flex h-56 w-56 items-center justify-center">
+            {/* Decorative ring */}
             <div
-              className="w-full h-full rounded-full bg-gradient-to-br from-pink to-red flex items-center justify-center text-8xl shadow-xl"
+              className={`absolute inset-2 rounded-full border border-[#ff4d6d]/10 transition-all duration-700 ${
+                spinning ? 'scale-110 rotate-45' : 'scale-100'
+              }`}
+            />
+
+            <div className="absolute inset-6 rounded-full border border-white bg-white/50 shadow-[inset_0_0_40px_rgba(255,77,109,0.05)]" />
+
+            {/* Bottle */}
+            <div
+              className={`relative z-10 flex h-36 w-36 items-center justify-center rounded-full transition-shadow duration-500 ${
+                spinning
+                  ? 'shadow-[0_20px_60px_rgba(255,77,109,0.35)]'
+                  : 'shadow-[0_15px_45px_rgba(255,77,109,0.16)]'
+              }`}
               style={{
                 transform: `rotate(${rotation}deg)`,
-                transition: spinning ? 'transform 2s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+                transition: spinning
+                  ? 'transform 2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                  : 'none',
               }}
             >
-              🍾
+              <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#ff6b88] via-[#ff4d6d] to-[#f72f59]">
+                <span className="text-[90px] leading-none drop-shadow-[0_8px_12px_rgba(0,0,0,0.16)]">
+                  🍾
+                </span>
+              </div>
+            </div>
+
+            {/* Center sparkle */}
+            <div className="absolute -right-1 top-10 z-20 text-xl">
+              ✨
+            </div>
+
+            <div className="absolute -bottom-1 left-2 z-20 text-sm">
+              💕
             </div>
           </div>
         </div>
 
-        <button className="btn-primary mt-4" onClick={spinBottle} disabled={spinning}>
-          {spinning ? 'Spinning...' : 'Spin Bottle 🌀'}
+        <div className="mt-2 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-300">
+            {spinning ? 'The bottle is choosing...' : 'Ready when you are'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className={`mt-5 w-full rounded-full px-6 py-4 font-bold text-white transition-all duration-200 ${
+            spinning
+              ? 'cursor-not-allowed bg-gray-300 shadow-none'
+              : 'bg-gradient-to-r from-[#ff4d6d] to-[#ff365c] shadow-[0_12px_35px_rgba(255,77,109,0.30)] hover:scale-[1.01] active:scale-[0.97]'
+          }`}
+          onClick={spinBottle}
+          disabled={spinning}
+        >
+          <span className="flex items-center justify-center gap-2">
+            <span className={spinning ? 'animate-spin' : ''}>
+              {spinning ? '🌀' : '🍾'}
+            </span>
+
+            {spinning ? 'Spinning...' : 'Spin the Bottle'}
+          </span>
         </button>
+      </section>
 
-        {/* Warning for Crazy Mode */}
-        {difficulty === 'crazy' && (
-          <p className="text-xs text-red-500 mt-2 font-semibold">🔥 Explicit mode: Only play if you are both 18+ and fully comfortable!</p>
-        )}
+      {/* =====================================================
+          RESULT CARD
+      ====================================================== */}
+      {result && (
+        <section className="mt-7">
+          <div className="relative overflow-hidden rounded-[30px] border border-white bg-white p-5 shadow-[0_20px_60px_rgba(31,20,24,0.10)]">
+            {/* Accent */}
+            <div
+              className={`absolute left-0 top-0 h-1.5 w-full ${
+                type === 'Truth'
+                  ? 'bg-gradient-to-r from-[#ff7b98] to-[#ff4d6d]'
+                  : 'bg-gradient-to-r from-orange-400 to-red-500'
+              }`}
+            />
 
-        {result && (
-          <div className="mt-6 p-6 bg-white rounded-[32px] shadow-xl">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-red">{type}</span>
-              {type === 'Dare' && timerActive && (
-                <span className="text-sm font-bold text-red">⏱ {timer}s</span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl text-sm ${
+                    type === 'Truth'
+                      ? 'bg-[#fff0f3] text-[#ff4d6d]'
+                      : 'bg-orange-50 text-orange-500'
+                  }`}
+                >
+                  {type === 'Truth' ? '💭' : '🔥'}
+                </span>
+
+                <div>
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-[0.12em] ${
+                      type === 'Truth'
+                        ? 'text-[#ff4d6d]'
+                        : 'text-orange-500'
+                    }`}
+                  >
+                    {type}
+                  </p>
+
+                  <p className="text-[9px] font-medium text-gray-400">
+                    Your challenge
+                  </p>
+                </div>
+              </div>
+
+              {type === 'Dare' && (
+                <div
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${
+                    timerActive
+                      ? 'bg-red-50 text-red-500'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  ⏱ {timer}s
+                </div>
               )}
             </div>
-            <p className="text-xl font-bold mt-2">{result}</p>
-            <div className="flex gap-3 mt-4">
-              {type === 'Truth' && (
-                <button className="btn-secondary flex-1 py-3 text-sm" onClick={nextRound}>Next</button>
-              )}
-              {type === 'Dare' && (
-                <>
-                  <button className="bg-green-500 text-white flex-1 py-3 rounded-full font-semibold text-sm" onClick={nextRound}>✅ Done</button>
-                  <button className="bg-gray-100 text-black flex-1 py-3 rounded-full font-semibold text-sm" onClick={skipDare}>Skip</button>
-                </>
+
+            <div className="mt-5 rounded-[22px] bg-[#fffaf9] p-5">
+              <p className="text-[20px] font-bold leading-8 tracking-tight text-[#171717]">
+                {result}
+              </p>
+            </div>
+
+            {type === 'Dare' && timerActive && (
+              <div className="mt-4">
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#ff4d6d] to-red-500 transition-all duration-1000"
+                    style={{
+                      width: `${(timer / 30) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5">
+              {type === 'Truth' ? (
+                <button
+                  type="button"
+                  className="w-full rounded-full bg-[#171717] py-3.5 text-sm font-bold text-white transition-all active:scale-[0.98]"
+                  onClick={nextRound}
+                >
+                  Next Question →
+                </button>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    className="rounded-full bg-emerald-500 py-3.5 text-sm font-bold text-white shadow-[0_10px_25px_rgba(16,185,129,0.20)] transition-all active:scale-[0.97]"
+                    onClick={nextRound}
+                  >
+                    ✅ Done
+                  </button>
+
+                  <button
+                    type="button"
+                    className="rounded-full bg-gray-100 py-3.5 text-sm font-bold text-gray-700 transition-all active:scale-[0.97]"
+                    onClick={skipDare}
+                  >
+                    Skip
+                  </button>
+                </div>
               )}
             </div>
           </div>
-        )}
+
+          <p className="mt-3 text-center text-[10px] font-medium text-gray-300">
+            No pressure. You can skip any challenge.
+          </p>
+        </section>
+      )}
+
+      {/* =====================================================
+          EMPTY STATE / HOW TO PLAY
+      ====================================================== */}
+      {!result && !spinning && (
+        <section className="mt-8">
+          <div className="section-label">
+            How it works
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="soft-card p-4 text-center">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-[#fff0f3] text-lg">
+                1
+              </div>
+              <p className="mt-3 text-[11px] font-bold text-[#171717]">
+                Pick a vibe
+              </p>
+              <p className="mt-1 text-[9px] leading-4 text-gray-400">
+                Soft, spicy or crazy
+              </p>
+            </div>
+
+            <div className="soft-card p-4 text-center">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-gray-100 text-lg">
+                2
+              </div>
+              <p className="mt-3 text-[11px] font-bold text-[#171717]">
+                Spin
+              </p>
+              <p className="mt-1 text-[9px] leading-4 text-gray-400">
+                Let fate decide
+              </p>
+            </div>
+
+            <div className="soft-card p-4 text-center">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-lg">
+                3
+              </div>
+              <p className="mt-3 text-[11px] font-bold text-[#171717]">
+                Play
+              </p>
+              <p className="mt-1 text-[9px] leading-4 text-gray-400">
+                Answer or complete it
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* =====================================================
+          FOOT NOTE
+      ====================================================== */}
+      <div className="mt-8 text-center">
+        <div className="mx-auto flex items-center justify-center gap-3 text-gray-200">
+          <span className="h-px w-12 bg-gray-200" />
+          <span className="text-sm">♥</span>
+          <span className="h-px w-12 bg-gray-200" />
+        </div>
+
+        <p className="mt-3 text-[9px] font-medium text-gray-300">
+          Made for playful moments, honest answers & memories together.
+        </p>
       </div>
     </div>
   );
