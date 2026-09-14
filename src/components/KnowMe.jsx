@@ -8,19 +8,19 @@ const KnowMe = () => {
   const { vibrate, share } = useApp();
   const [searchParams] = useSearchParams();
   
-  // Get both the ID (for the creator) and the encoded data (for the partner)
   const id = searchParams.get('id');
   const encodedData = searchParams.get('data');
   const from = searchParams.get('from') || 'Partner';
 
   // States for create mode
   const [name, setName] = useState('');
+  // Added correctIndex to track the creator's chosen correct answer for each question
   const [questions, setQuestions] = useState([
-    { q: 'My fav food?', options: ['Pizza', 'Burgers', 'Sushi', 'Pap & Meat'] },
-    { q: 'My go-to drink?', options: ['Coffee', 'Tea', 'Juice', 'Water'] },
-    { q: 'My dream vacation?', options: ['Beach', 'Mountains', 'City', 'Safari'] },
-    { q: 'My love language?', options: ['Words', 'Touch', 'Gifts', 'Time'] },
-    { q: 'My pet name?', options: ['Babe', 'Love', 'Sweetie', 'Boo'] },
+    { q: 'My fav food?', options: ['Pizza', 'Burgers', 'Sushi', 'Pap & Meat'], correctIndex: null },
+    { q: 'My go-to drink?', options: ['Coffee', 'Tea', 'Juice', 'Water'], correctIndex: null },
+    { q: 'My dream vacation?', options: ['Beach', 'Mountains', 'City', 'Safari'], correctIndex: null },
+    { q: 'My love language?', options: ['Words', 'Touch', 'Gifts', 'Time'], correctIndex: null },
+    { q: 'My pet name?', options: ['Babe', 'Love', 'Sweetie', 'Boo'], correctIndex: null },
   ]);
   const [createdId, setCreatedId] = useState(null);
   const [link, setLink] = useState('');
@@ -35,7 +35,6 @@ const KnowMe = () => {
   // Load quiz if id or encodedData is present
   useEffect(() => {
     if (encodedData) {
-      // PLAYER MODE: Decode the data directly from the URL
       try {
         const decoded = JSON.parse(decodeURIComponent(atob(encodedData)));
         setQuizData(decoded);
@@ -45,7 +44,6 @@ const KnowMe = () => {
         navigate('/');
       }
     } else if (id) {
-      // CREATOR MODE: Load from local storage (for the person who made it)
       const data = loadFromLocal(`lovers_quiz_${id}`);
       if (!data) {
         alert('Quiz not found! If you are the creator, please recreate it on this device.');
@@ -66,7 +64,7 @@ const KnowMe = () => {
   // Create handlers
   const addQuestion = () => {
     if (questions.length < 10) {
-      setQuestions([...questions, { q: '', options: ['', '', '', ''] }]);
+      setQuestions([...questions, { q: '', options: ['', '', '', ''], correctIndex: null }]);
     }
   };
   const removeQuestion = (idx) => {
@@ -86,23 +84,33 @@ const KnowMe = () => {
     newQ[qIdx].options[oIdx] = value;
     setQuestions(newQ);
   };
+  
+  // NEW: Handler to set the correct answer
+  const setCorrectOption = (qIdx, oIdx) => {
+    const newQ = [...questions];
+    newQ[qIdx].correctIndex = oIdx;
+    setQuestions(newQ);
+    vibrate(20);
+  };
 
   const handleCreate = () => {
     if (!name.trim()) { alert('Please enter your name'); return; }
-    const valid = questions.every(q => q.q.trim() && q.options.every(o => o.trim()));
-    if (!valid) { alert('Fill all questions and options'); return; }
+    
+    // Validate that all text fields are filled
+    const validText = questions.every(q => q.q.trim() && q.options.every(o => o.trim()));
+    if (!validText) { alert('Fill all questions and options'); return; }
+    
+    // Validate that a correct answer has been selected for every question
+    const validCorrect = questions.every(q => q.correctIndex !== null && q.correctIndex !== undefined);
+    if (!validCorrect) { alert('Please select the correct answer for every question (tap the circle next to the option)'); return; }
     
     const newId = generateId();
     const data = { name: name.trim(), questions };
     
-    // 1. Save locally (so the creator can still access it on this device)
     saveToLocal(`lovers_quiz_${newId}`, data);
     
-    // 2. Encode the data into a Base64 string to put inside the URL
-    // We use encodeURIComponent to safely handle emojis and special characters
+    // Encode the entire quiz data (including correctIndex) into Base64
     const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
-    
-    // 3. Build the full link with BOTH the id and the encoded data
     const fullLink = `${getOrigin()}/play/knowme?id=${newId}&from=${encodeURIComponent(name.trim())}&data=${encoded}`;
     
     setCreatedId(newId);
@@ -121,19 +129,20 @@ const KnowMe = () => {
     newAns[current] = idx;
     setAnswers(newAns);
     vibrate(30);
+    
     if (current < quizData.questions.length - 1) {
       setCurrent(current + 1);
     } else {
-      // Calculate score
-      const creatorName = quizData.name || 'Lover';
+      // Calculate REAL score based on the creator's chosen correct answers
       let correctCount = 0;
       quizData.questions.forEach((q, qi) => {
-        const correctIdx = (creatorName.length + qi) % 4;
-        if (answers[qi] === correctIdx) correctCount++;
+        if (answers[qi] === q.correctIndex) correctCount++;
       });
+      
       setScore(correctCount);
       setDone(true);
-      if (correctCount >= 4) {
+      
+      if (correctCount === quizData.questions.length) {
         confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, useWorker: false });
       }
       vibrate(50);
@@ -171,7 +180,7 @@ const KnowMe = () => {
       <div className="pb-4">
         <div className="mt-4">
           <h2 className="font-playfair text-2xl font-bold">Create Your Quiz</h2>
-          <p className="text-gray-600 text-sm">Your partner will answer these questions about you</p>
+          <p className="text-gray-600 text-sm">Select the correct answer for each question</p>
           <div className="mt-4">
             <label className="block font-semibold text-sm text-gray-700">Your Name</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sandile" className="w-full p-3 border-2 border-gray-200 rounded-2xl focus:border-pink outline-none" />
@@ -181,15 +190,40 @@ const KnowMe = () => {
               <label className="font-semibold text-sm text-gray-700">Questions ({questions.length})</label>
               <button onClick={addQuestion} className="text-red font-semibold text-sm">+ Add</button>
             </div>
+            
             {questions.map((q, qi) => (
               <div key={qi} className="mt-3 p-4 bg-white rounded-2xl shadow-sm border border-pink/10">
                 <div className="flex items-center gap-2">
                   <input value={q.q} onChange={e => updateQuestion(qi, 'q', e.target.value)} placeholder={`Question ${qi+1}`} className="flex-1 p-2 border border-gray-200 rounded-xl" />
                   {questions.length > 2 && <button onClick={() => removeQuestion(qi)} className="text-red-400 text-xl">✕</button>}
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
+                
+                {/* Updated Option UI: Radio circle + Input */}
+                <div className="mt-3 flex flex-col gap-2">
                   {q.options.map((o, oi) => (
-                    <input key={oi} value={o} onChange={e => updateOption(qi, oi, e.target.value)} placeholder={`Option ${oi+1}`} className="p-2 border border-gray-200 rounded-xl" />
+                    <div key={oi} className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCorrectOption(qi, oi)}
+                        className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                          q.correctIndex === oi 
+                            ? 'bg-green-500 border-green-500 text-white' 
+                            : 'border-gray-300 hover:border-green-400'
+                        }`}
+                      >
+                        {q.correctIndex === oi && <span className="text-xs">✓</span>}
+                      </button>
+                      <input 
+                        value={o} 
+                        onChange={e => updateOption(qi, oi, e.target.value)} 
+                        placeholder={`Option ${oi+1}`} 
+                        className={`flex-1 p-2 border rounded-xl outline-none transition-colors ${
+                          q.correctIndex === oi 
+                            ? 'border-green-500 bg-green-50' 
+                            : 'border-gray-200 focus:border-pink'
+                        }`} 
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -205,7 +239,7 @@ const KnowMe = () => {
   if (!quizData) return <div className="py-8 text-center">Loading quiz...</div>;
 
   if (done) {
-    const perfect = score >= 4;
+    const perfect = score === quizData.questions.length;
     return (
       <div className="pb-4">
         <div className="mt-8 text-center">
@@ -235,9 +269,9 @@ const KnowMe = () => {
         </div>
         <div className="mt-6 p-6 bg-white rounded-[32px] shadow-lg">
           <h3 className="text-xl font-bold">{quizData.questions[current].q}</h3>
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3">
             {quizData.questions[current].options.map((opt, oi) => (
-              <button key={oi} className="bg-gray-50 p-4 rounded-2xl font-medium hover:bg-pink/10 active:scale-95 transition-all" onClick={() => handleAnswer(oi)}>
+              <button key={oi} className="bg-gray-50 p-4 rounded-2xl font-medium hover:bg-pink/10 active:scale-95 transition-all text-left" onClick={() => handleAnswer(oi)}>
                 {opt}
               </button>
             ))}
